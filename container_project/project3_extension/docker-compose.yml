@@ -1,0 +1,523 @@
+# =============================================================
+# Docker Compose - 项目三：开发扩展
+# 学生: lh  学号: 202312080114
+# 架构: Swarm + ZooKeeper + Hadoop HA + Kafka + MySQL + Dashboard
+# =============================================================
+
+services:
+  # -----------------------------------------------------------
+  # ZooKeeper 集群（3 节点）
+  # -----------------------------------------------------------
+  zk-1-lh-0114:
+    image: docker.m.daocloud.io/zookeeper:3.8
+    container_name: zk-1-lh-0114
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zk-1-lh-0114:2888:3888;2181 server.2=zk-2-lh-0114:2888:3888;2181 server.3=zk-3-lh-0114:2888:3888;2181
+      TZ: Asia/Shanghai
+    volumes:
+      - zk1-data:/data
+      - zk1-datalog:/datalog
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  zk-2-lh-0114:
+    image: docker.m.daocloud.io/zookeeper:3.8
+    container_name: zk-2-lh-0114
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zk-1-lh-0114:2888:3888;2181 server.2=zk-2-lh-0114:2888:3888;2181 server.3=zk-3-lh-0114:2888:3888;2181
+      TZ: Asia/Shanghai
+    volumes:
+      - zk2-data:/data
+      - zk2-datalog:/datalog
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  zk-3-lh-0114:
+    image: docker.m.daocloud.io/zookeeper:3.8
+    container_name: zk-3-lh-0114
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zk-1-lh-0114:2888:3888;2181 server.2=zk-2-lh-0114:2888:3888;2181 server.3=zk-3-lh-0114:2888:3888;2181
+      TZ: Asia/Shanghai
+    volumes:
+      - zk3-data:/data
+      - zk3-datalog:/datalog
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # -----------------------------------------------------------
+  # JournalNode 集群（3 节点，HDFS HA 共享编辑日志）
+  # -----------------------------------------------------------
+  journalnode1-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: journalnode1-lh-0114
+    hostname: journalnode1-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    command: ["bash", "-c", "hdfs journalnode"]
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  journalnode2-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: journalnode2-lh-0114
+    hostname: journalnode2-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    command: ["bash", "-c", "hdfs journalnode"]
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  journalnode3-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: journalnode3-lh-0114
+    hostname: journalnode3-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    command: ["bash", "-c", "hdfs journalnode"]
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # -----------------------------------------------------------
+  # Hadoop HA - NameNode x2
+  # -----------------------------------------------------------
+  namenode1-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: namenode1-lh-0114
+    hostname: namenode1-lh-0114
+    environment:
+      HADOOP_ROLE: namenode
+      NODE_ID: nn1
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    ports:
+      - "9870:9870"
+    command: >
+      bash -c "
+        hdfs namenode -format -force 2>/dev/null || true;
+        hdfs --daemon start namenode;
+        sleep 5;
+        hdfs zkfc -formatZK -force 2>/dev/null || true;
+        hdfs --daemon start zkfc;
+        sleep infinity
+      "
+    depends_on:
+      - journalnode1-lh-0114
+      - journalnode2-lh-0114
+      - journalnode3-lh-0114
+      - zk-1-lh-0114
+      - zk-2-lh-0114
+      - zk-3-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  namenode2-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: namenode2-lh-0114
+    hostname: namenode2-lh-0114
+    environment:
+      HADOOP_ROLE: namenode
+      NODE_ID: nn2
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    ports:
+      - "9871:9870"
+    command: >
+      bash -c "
+        sleep 15;
+        hdfs namenode -bootstrapStandby -force 2>/dev/null || true;
+        hdfs --daemon start namenode;
+        hdfs --daemon start zkfc;
+        sleep infinity
+      "
+    depends_on:
+      - namenode1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # -----------------------------------------------------------
+  # Hadoop HA - ResourceManager x2
+  # -----------------------------------------------------------
+  resourcemanager1-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: resourcemanager1-lh-0114
+    hostname: resourcemanager1-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    ports:
+      - "8088:8088"
+    command: >
+      bash -c "
+        sleep 30;
+        yarn --daemon start resourcemanager;
+        sleep infinity
+      "
+    depends_on:
+      - namenode1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  resourcemanager2-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: resourcemanager2-lh-0114
+    hostname: resourcemanager2-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    ports:
+      - "8089:8088"
+    command: >
+      bash -c "
+        sleep 35;
+        yarn --daemon start resourcemanager;
+        sleep infinity
+      "
+    depends_on:
+      - resourcemanager1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # -----------------------------------------------------------
+  # DataNode + NodeManager x4
+  # -----------------------------------------------------------
+  datanode1-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: datanode1-lh-0114
+    hostname: datanode1-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    command: >
+      bash -c "
+        sleep 25;
+        hdfs --daemon start datanode;
+        yarn --daemon start nodemanager;
+        sleep infinity
+      "
+    depends_on:
+      - namenode1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  datanode2-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: datanode2-lh-0114
+    hostname: datanode2-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    command: >
+      bash -c "
+        sleep 28;
+        hdfs --daemon start datanode;
+        yarn --daemon start nodemanager;
+        sleep infinity
+      "
+    depends_on:
+      - namenode1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  datanode3-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: datanode3-lh-0114
+    hostname: datanode3-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    command: >
+      bash -c "
+        sleep 31;
+        hdfs --daemon start datanode;
+        yarn --daemon start nodemanager;
+        sleep infinity
+      "
+    depends_on:
+      - namenode1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  datanode4-lh-0114:
+    image: docker.m.daocloud.io/apache/hadoop:3.3.6
+    container_name: datanode4-lh-0114
+    hostname: datanode4-lh-0114
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/yarn-site.xml:/opt/hadoop/etc/hadoop/yarn-site.xml:ro
+    command: >
+      bash -c "
+        sleep 34;
+        hdfs --daemon start datanode;
+        yarn --daemon start nodemanager;
+        sleep infinity
+      "
+    depends_on:
+      - namenode1-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # -----------------------------------------------------------
+  # Kafka 集群（2 Broker）
+  # -----------------------------------------------------------
+  kafka-1-lh-0114:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-1-lh-0114
+    hostname: kafka-1-lh-0114
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zk-1-lh-0114:2181,zk-2-lh-0114:2181,zk-3-lh-0114:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1-lh-0114:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      TZ: Asia/Shanghai
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zk-1-lh-0114
+      - zk-2-lh-0114
+      - zk-3-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  kafka-2-lh-0114:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-2-lh-0114
+    hostname: kafka-2-lh-0114
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zk-1-lh-0114:2181,zk-2-lh-0114:2181,zk-3-lh-0114:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2-lh-0114:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      TZ: Asia/Shanghai
+    volumes:
+      - kafka2-data:/var/lib/kafka/data
+    ports:
+      - "9093:9092"
+    depends_on:
+      - zk-1-lh-0114
+      - zk-2-lh-0114
+      - zk-3-lh-0114
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # -----------------------------------------------------------
+  # MySQL
+  # -----------------------------------------------------------
+  mysql-lh-0114:
+    image: docker.m.daocloud.io/library/mysql:8.0
+    container_name: mysql-lh-0114
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: bigdata_db_lh
+      MYSQL_USER: lh
+      MYSQL_PASSWORD: "123456"
+      TZ: Asia/Shanghai
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3307:3306"
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -----------------------------------------------------------
+  # 数据大屏
+  # -----------------------------------------------------------
+  dashboard-lh-0114:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: dashboard-lh-0114
+    environment:
+      MYSQL_HOST: mysql-lh-0114
+      MYSQL_PORT: "3306"
+      MYSQL_USER: lh
+      MYSQL_PASSWORD: "123456"
+      MYSQL_DB: bigdata_db_lh
+      TZ: Asia/Shanghai
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql-lh-0114:
+        condition: service_healthy
+    networks:
+      - hadoop-net-lh-0114
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+# -----------------------------------------------------------
+# 自定义 Overlay 网络
+# -----------------------------------------------------------
+networks:
+  hadoop-net-lh-0114:
+    driver: bridge
+    name: hadoop-net-lh-0114
+
+# -----------------------------------------------------------
+# 命名卷（数据持久化）
+# -----------------------------------------------------------
+volumes:
+  zk1-data:
+  zk1-datalog:
+  zk2-data:
+  zk2-datalog:
+  zk3-data:
+  zk3-datalog:
+  jn1-data:
+  jn2-data:
+  jn3-data:
+  nn1-data:
+  nn2-data:
+  dn1-data:
+  dn2-data:
+  dn3-data:
+  dn4-data:
+  kafka1-data:
+  kafka2-data:
+  mysql-data:
