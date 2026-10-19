@@ -436,10 +436,10 @@ services:
     image: docker.m.daocloud.io/library/mysql:8.0
     container_name: mysql-lh-0114
     environment:
-      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: bigdata_db_lh
       MYSQL_USER: lh
-      MYSQL_PASSWORD: "123456"
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       TZ: Asia/Shanghai
     command: >
       --character-set-server=utf8mb4
@@ -458,7 +458,7 @@ services:
         limits:
           memory: 512M
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123456"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -475,7 +475,7 @@ services:
       MYSQL_HOST: mysql-lh-0114
       MYSQL_PORT: "3306"
       MYSQL_USER: lh
-      MYSQL_PASSWORD: "123456"
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       MYSQL_DB: bigdata_db_lh
       TZ: Asia/Shanghai
     ports:

@@ -22,7 +22,7 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 MYSQL_HOST = os.environ.get("MYSQL_HOST", "mysql")
 MYSQL_PORT = int(os.environ.get("MYSQL_PORT", 3306))
 MYSQL_USER = os.environ.get("MYSQL_USER", "lh")
-MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "123456")
+MYSQL_PASSWORD = os.environ["MYSQL_PASSWORD"]
 MYSQL_DB = os.environ.get("MYSQL_DB", "appdb")
 
 

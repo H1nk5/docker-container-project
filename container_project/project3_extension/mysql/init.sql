@@ -26,7 +26,4 @@ INSERT INTO data_stats (data_source, record_count) VALUES
     ('Kafka', 2847),
     ('YARN', 89);
 
--- 创建用户
-CREATE USER IF NOT EXISTS 'lh'@'%' IDENTIFIED BY '123456';
-GRANT ALL PRIVILEGES ON bigdata_db_lh.* TO 'lh'@'%';
-FLUSH PRIVILEGES;
+-- 数据库用户和授权由 MySQL 镜像的 MYSQL_USER/MYSQL_PASSWORD 创建。

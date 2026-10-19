@@ -105,6 +105,7 @@ docker run -it ubuntu-lh:0114
 
 ```bash
 cd container_project/project2_design
+cp .env.example .env
 docker compose up -d
 docker compose ps
 curl http://localhost
@@ -114,6 +115,7 @@ curl http://localhost
 
 ```bash
 cd container_project/project3_extension
+cp .env.example .env
 docker compose up -d
 docker compose ps
 ```

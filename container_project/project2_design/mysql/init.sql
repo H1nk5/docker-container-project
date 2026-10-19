@@ -27,7 +27,4 @@ CREATE TABLE IF NOT EXISTS users (
 -- 插入初始记录：lh，首次访问时间为当前时间
 INSERT INTO users (name, first_access_time) VALUES ('lh', NOW());
 
--- 创建数据库用户并授权
-CREATE USER IF NOT EXISTS 'lh'@'%' IDENTIFIED BY '123456';
-GRANT ALL PRIVILEGES ON appdb.* TO 'lh'@'%';
-FLUSH PRIVILEGES;
+-- 数据库用户和授权由 MySQL 镜像的 MYSQL_USER/MYSQL_PASSWORD 创建。

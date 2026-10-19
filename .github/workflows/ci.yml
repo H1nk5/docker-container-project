@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m compileall -q container_project
+      - name: Validate project 2 compose
+        working-directory: container_project/project2_design
+        run: cp .env.example .env && docker compose config --quiet
+      - name: Validate project 3 compose
+        working-directory: container_project/project3_extension
+        run: cp .env.example .env && docker compose config --quiet
